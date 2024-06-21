@@ -4,7 +4,7 @@ import pandas as pd
 # 设置页面配置
 st.set_page_config(
     page_title="高尔夫球场轨迹点数据分析",
-    page_icon=":golf::",
+    page_icon=":golf:",
     layout="wide",  
 )
 
