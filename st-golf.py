@@ -1,68 +1,80 @@
 import streamlit as st
 import pandas as pd
 
-# 设置页面配置
 st.set_page_config(
     page_title="高尔夫球场轨迹点数据分析",
     page_icon=":golf:",
-    layout="wide",  
+    layout="wide",
 )
 
-# 设置页面标题
 st.title('高尔夫球场轨迹点数据分析')
 
-# 文件上传器
 uploaded_file = st.file_uploader("上传Excel文件", type=["xlsx"])
 
 if uploaded_file is not None:
-    # 读取上传的Excel文件
+
     df = pd.read_excel(uploaded_file)
-    
-    # 显示原始数据表格
+
     st.subheader('原始数据')
     st.dataframe(df)
-    
-    # 初始化一个空的 DataFrame 来存储过滤后的结果
     filtered_data = []
 
-    # 遍历每个球场
-    for course in df['球场名称'].unique():
-        course_data = df[df['球场名称'] == course]
-    
-        # 检查 court 列
-        if 'court' in course_data.columns:
-            for _, row in course_data.iterrows():
-                if isinstance(row['court'], str):
-                    elements = row['court'].split('; ')
-                    for element in elements:
-                        if '[' in element:
-                            filtered_data.append({
-                                '球场名称': course,
-                                '球洞': 'court',
-                                '内容': element
-                            })
+    for index, row in df.iterrows():
+        course_name = row['球场名称']
 
-        # 检查每个球洞的列
+        for column in df.columns:
+            if '球道边界' in column or '球场外轮廓' in column or '果岭' in column or '击球路线' in column:
+                elements = str(row[column]).split('; ')
+                
+                for element in elements:
+                    if ':' in element:
+                        parts = element.split(': ')
+                        feature_name = parts[0].strip()
+                        
+                        if feature_name in ['球道边界', '球场外轮廓', '果岭', '击球路线']:
+                            try:
+                                value = int(parts[1].strip())
+                                if value > 1:
+                                    filtered_data.append({
+                                        '球场名称': course_name,
+                                        '球洞': '',
+                                        '要素名称': feature_name,
+                                        '数值': value
+                                    })
+                            except ValueError:
+                                continue
+
         for hole in range(1, 19):
             hole_col = str(hole)
-            if hole_col in course_data.columns:
-                for _, row in course_data.iterrows():
-                    if isinstance(row[hole_col], str):
-                        elements = row[hole_col].split('; ')
-                        for element in elements:
-                            if any(keyword in element for keyword in ['court', 'course', 'midline', 'green']) and '[' in element:
-                                filtered_data.append({
-                                    '球场名称': course,
-                                    '球洞': hole_col,
-                                    '内容': element
-                                })
 
-    # 将过滤后的结果转换为 DataFrame
+            if hole_col in df.columns:
+                elements = str(row[hole_col]).split('; ')
+                
+                for element in elements:
+                    if ':' in element:
+                        parts = element.split(': ')
+                        feature_name = parts[0].strip()
+                        
+                        if feature_name in ['球道边界', '球场外轮廓', '果岭', '击球路线']:
+                            try:
+                                value = int(parts[1].strip())
+                                if value > 1:
+                                    filtered_data.append({
+                                        '球场名称': course_name,
+                                        '球洞': hole_col,
+                                        '要素名称': feature_name,
+                                        '数值': value
+                                    })
+                            except ValueError:
+                                continue
+
     filtered_df = pd.DataFrame(filtered_data)
 
-    # 显示过滤后的数据
+    total_elements = df.iloc[-1]['球场要素总数量']
+    st.write(f"全部球场总要素数量为：{total_elements}")
+
     if not filtered_df.empty:
-        st.subheader('包含 `[]` 的轨迹点数据 (court, course, midline, green)')
+        st.subheader('球场要素超过阈值（忽略双果岭）')
         st.dataframe(filtered_df)
     else:
-        st.write('没有包含 `[]` 的轨迹点数据 (court, course, midline, green)')
+        st.write('暂未发现球场要素超过阈值')
