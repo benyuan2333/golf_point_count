@@ -76,5 +76,5 @@ if uploaded_file is not None:
             for hole in range(1, 19):
                 if course_data[str(hole)]:
                     st.markdown(f"**Hole {hole}:** {course_data[str(hole)]}")
-    else:
-        st.warning("请上传一个Excel文件")
+else:
+     st.warning("请上传一个Excel文件")
