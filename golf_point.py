@@ -21,13 +21,15 @@ if uploaded_file is not None:
     # 显示原始数据表格
     st.subheader('原始数据')
     st.dataframe(df)
+    
+    # 初始化一个空的 DataFrame 来存储过滤后的结果
     filtered_data = []
 
-   # 遍历每个球场
+    # 遍历每个球场
     for course in df['球场名称'].unique():
         course_data = df[df['球场名称'] == course]
     
-    # 检查 court 列
+        # 检查 court 列
         if 'court' in course_data.columns:
             for _, row in course_data.iterrows():
                 if isinstance(row['court'], str):
@@ -64,17 +66,18 @@ if uploaded_file is not None:
         st.dataframe(filtered_df)
     else:
         st.write('没有包含 `[]` 的轨迹点数据 (court, fairway, course, midline, green)')
-        # 提取球场名称
-        courses = df['球场名称'].unique()
-    
-        # 创建一个单选框用于选择单个球场
-        selected_course = st.selectbox('选择球场', courses)
-    
-        if selected_course:
-            course_data = df[df["球场名称"] == selected_course].iloc[0]
-            st.subheader(f"{selected_course} 超过阈值的元素列表")
-            for hole in range(1, 19):
-                if course_data[str(hole)]:
-                    st.markdown(f"**Hole {hole}:** {course_data[str(hole)]}")
-else:
-     st.warning("请上传一个Excel文件")
+
+# 提取球场名称
+courses = df['球场名称'].unique()
+
+# 创建一个单选框用于选择单个球场
+selected_course = st.selectbox('选择球场', courses)
+
+if selected_course and uploaded_file is not None:
+    course_data = df[df["球场名称"] == selected_course].iloc[0]
+    st.subheader(f"{selected_course} 超过阈值的元素列表")
+    for hole in range(1, 19):
+        if course_data[str(hole)]:
+            st.markdown(f"**Hole {hole}:** {course_data[str(hole)]}")
+elif uploaded_file is None:
+    st.warning("请上传一个Excel文件")
