@@ -50,7 +50,7 @@ if uploaded_file is not None:
                     if isinstance(row[hole_col], str):
                         elements = row[hole_col].split('; ')
                         for element in elements:
-                            if any(keyword in element for keyword in ['court', 'fairway', 'course', 'midline', 'green']) and '[' in element:
+                            if any(keyword in element for keyword in ['court', 'course', 'midline', 'green']) and '[' in element:
                                 filtered_data.append({
                                     '球场名称': course,
                                     '球洞': hole_col,
@@ -62,7 +62,7 @@ if uploaded_file is not None:
 
     # 显示过滤后的数据
     if not filtered_df.empty:
-        st.subheader('包含 `[]` 的轨迹点数据 (court, fairway, course, midline, green)')
+        st.subheader('包含 `[]` 的轨迹点数据 (court, course, midline, green)')
         st.dataframe(filtered_df)
     else:
-        st.write('没有包含 `[]` 的轨迹点数据 (court, fairway, course, midline, green)')
+        st.write('没有包含 `[]` 的轨迹点数据 (court, course, midline, green)')
