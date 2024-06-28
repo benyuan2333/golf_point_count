@@ -2,12 +2,12 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(
-    page_title="高尔夫球场轨迹点数据分析",
+    page_title="高尔夫球场要素分析",
     page_icon=":golf:",
     layout="wide",
 )
 
-st.title('高尔夫球场轨迹点数据分析')
+st.title('高尔夫球场要素分析')
 
 uploaded_file = st.file_uploader("上传Excel文件", type=["xlsx"])
 
