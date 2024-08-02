@@ -5,5 +5,4 @@ pyshp
 matplotlib
 geopandas
 folium
-os
 streamlit_folium
