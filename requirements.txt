@@ -1,7 +1,6 @@
 pandas
 openpyxl
 streamlit
-pyshp
-matplotlib
 streamlit_folium
 folium
+requests
