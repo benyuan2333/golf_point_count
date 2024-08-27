@@ -131,7 +131,6 @@ def fetch_course_ids(course_name, longitude, latitude):
     latitude = latitude[:9]
     url = f"https://omt.garmin.com/CourseViewData/Boundaries/{longitude},{latitude},32/Courses?courseName={course_name}&pageSize=10&page=1&filterDualGreen=false&filter3dOnly=false"
     response = requests.get(url, headers=headers)
-    st.text(response.text)
     if response.status_code == 200:
         try:
             data = response.json()
