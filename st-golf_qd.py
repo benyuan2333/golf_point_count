@@ -54,7 +54,7 @@ if uploaded_file is not None:
     center_lat = float(center_coords[1])
     center_lon = float(center_coords[0])
 
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=18, tiles=None)
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=15, tiles=None)
     folium.TileLayer(
         tiles='http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
         attr='Google',
@@ -70,7 +70,7 @@ if uploaded_file is not None:
         actual_coords = list(map(float, row['佳明经纬度'].split(',')))
         folium.Marker(
             location=[actual_coords[1], actual_coords[0]],
-            popup=f"佳明",
+            popup=f"球洞: {row['顺序出错球洞']}<br>类型: 佳明<br>距离: {row['距离(米)']} 米",
             icon=folium.DivIcon(html=f"""<div style="display: flex;justify-content: center;align-items: center;font-family: Arial;color: white;background-color: green;border-radius: 50%;width: 25px;height: 25px;font-size: 12px;font-weight: bold;">{row['顺序出错球洞']}</div>""")
         ).add_to(marker_cluster)
 
@@ -79,7 +79,7 @@ if uploaded_file is not None:
         error_coords = list(map(float, row['实际经纬度'].split(',')))
         folium.Marker(
             location=[error_coords[1], error_coords[0]],
-            popup=f"实际",
+            popup=f"球洞: {row['顺序出错球洞']}<br>类型: 实际<br>距离: {row['距离(米)']} 米",
             icon=folium.DivIcon(html=f"""<div style="display: flex;justify-content: center;align-items: center;font-family: Arial;color: white;background-color: red;border-radius: 50%;width: 25px; height: 25px;font-size: 12px;font-weight: bold;">{row['顺序出错球洞']}</div>""")
         ).add_to(marker_cluster)
 
