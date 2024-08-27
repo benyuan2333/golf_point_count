@@ -9,7 +9,7 @@ import math
 st.set_page_config(layout="wide")
 
 # 上传表格
-uploaded_file = st.file_uploader("上传表格", type=["csv", "json"])
+uploaded_file = st.file_uploader("上传表格", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
@@ -131,6 +131,7 @@ def fetch_course_ids(course_name, longitude, latitude):
     latitude = latitude[:9]
     url = f"https://omt.garmin.com/CourseViewData/Boundaries/{longitude},{latitude},32/Courses?courseName={course_name}&pageSize=10&page=1&filterDualGreen=false&filter3dOnly=false"
     response = requests.get(url, headers=headers)
+    st.text(response.text)
     if response.status_code == 200:
         try:
             data = response.json()
@@ -149,18 +150,18 @@ def fetch_course_ids(course_name, longitude, latitude):
             
             if closest_course:
                     matched_courses = [course for course in data.get('Courses', [])
-                                        if course_name in course.get('CourseName', '')]
+                                        if course_name in course.get('Name', '')]
 
                     if matched_courses:
                         closest_course = None
                         for course in matched_courses:
-                            if course.get('CourseName') == course_name:
+                            if course.get('Name') == course_name:
                                 closest_course = course
                                 break
                         # 如果没有完全匹配的球场，选择第一个名称包含的
                         if not closest_course:
                             closest_course = matched_courses[0]
-                            
+
                     st.success(f"Found course: {closest_course['Name']}, GlobalLayoutId: {closest_course['GlobalLayoutId']}, BuildId: {closest_course['BuildId']}")
                     return closest_course['GlobalLayoutId'], closest_course['BuildId']
             else:
