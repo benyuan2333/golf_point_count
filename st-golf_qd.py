@@ -54,7 +54,6 @@ if uploaded_file is not None:
     center_lat = float(center_coords[1])
     center_lon = float(center_coords[0])
 
-    # 设置更高的缩放级别
     m = folium.Map(location=[center_lat, center_lon], zoom_start=18, tiles=None)
     folium.TileLayer(
         tiles='http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
@@ -72,8 +71,7 @@ if uploaded_file is not None:
         folium.Marker(
             location=[actual_coords[1], actual_coords[0]],
             popup=f"佳明",
-            tooltip=f"球洞编号: {row['顺序出错球洞']}",
-            icon=folium.DivIcon(html=f"""<div style="display: flex;justify-content: center;align-items: center;font-family: Arial;color: white;background-color: green;border-radius: 50%;width: 30px;height: 30px;font-size: 14px;font-weight: bold;">{row['顺序出错球洞']}</div>""")
+            icon=folium.DivIcon(html=f"""<div style="display: flex;justify-content: center;align-items: center;font-family: Arial;color: white;background-color: green;border-radius: 50%;width: 25px;height: 25px;font-size: 12px;font-weight: bold;">{row['顺序出错球洞']}</div>""")
         ).add_to(marker_cluster)
 
     # 显示实际球洞点
@@ -82,8 +80,7 @@ if uploaded_file is not None:
         folium.Marker(
             location=[error_coords[1], error_coords[0]],
             popup=f"实际",
-            tooltip=f"球洞编号: {row['顺序出错球洞']}",
-            icon=folium.DivIcon(html=f"""<div style="display: flex;justify-content: center;align-items: center;font-family: Arial;color: white;background-color: red;border-radius: 50%;width: 30px;height: 30px;font-size: 14px;font-weight: bold;">{row['顺序出错球洞']}</div>""")
+            icon=folium.DivIcon(html=f"""<div style="display: flex;justify-content: center;align-items: center;font-family: Arial;color: white;background-color: red;border-radius: 50%;width: 25px; height: 25px;font-size: 12px;font-weight: bold;">{row['顺序出错球洞']}</div>""")
         ).add_to(marker_cluster)
 
     folium_static(m, width=1380, height=850)
