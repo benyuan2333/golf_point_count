@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import folium
+import requests
 from streamlit_folium import folium_static
 from folium.plugins import MarkerCluster
 
@@ -84,3 +85,70 @@ if uploaded_file is not None:
         ).add_to(marker_cluster)
 
     folium_static(m, width=1380, height=850)
+
+headers = {
+    'Accept': 'application/json; charset=utf-8',
+    'Authorization': 'Basic ODAwM2UwZWZhMGFlNGM3NGE4N2MxYTZlMDQ1ZTdkNjU6TDNAZGVyYm9hcmRQcjBkIQ==',
+}
+
+# 获取球场详情函数
+def fetch_course_details(global_layout_id, build_id):
+    api_url = f"https://omt.garmin.com/CourseViewData/course-layouts/{global_layout_id}/releases/{build_id}?precision=24&languageCode=zh_CHS"
+    response = requests.get(api_url, headers=headers)
+    if response.status_code == 200:
+        try:
+            return response.json()
+        except requests.JSONDecodeError as e:
+            st.error(f"JSON Decode Error: {e}")
+            return None
+    else:
+        st.error(f"Request failed with status code {response.status_code}")
+        return None
+
+# 根据经纬度获取球场的globalLayoutId和buildId
+def fetch_course_ids(course_name, longitude, latitude):
+    longitude = longitude[:9]
+    latitude = latitude[:9]
+    url = f"https://omt.garmin.com/CourseViewData/Boundaries/{longitude},{latitude},32/Courses?courseName={course_name}&pageSize=1&page=1&filterDualGreen=false&filter3dOnly=false"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        try:
+            data = response.json()
+            for course in data.get('Courses', []):
+                st.success(f"Found course: {course_name}, GlobalLayoutId: {course['GlobalLayoutId']}, BuildId: {course['BuildId']}")
+                return course['GlobalLayoutId'], course['BuildId']
+
+        except requests.JSONDecodeError as e:
+            st.error(f"JSON Decode Error: {e}")
+    else:
+        st.error(f"Request failed with status code {response.status_code}")
+    return None, None
+
+# 获取并显示球场图片
+def display_course_images():
+    name = course_data.iloc[0]['球场名称']
+    global_layout_id, build_id = fetch_course_ids(name, str(center_lon).replace(".", ""), str(center_lat).replace(".", ""))
+    if global_layout_id and build_id:
+        course_details = fetch_course_details(global_layout_id, build_id)
+        if course_details:
+            image_urls = []
+            hole_numbers = []
+            for hole in course_details.get('Holes', []):
+                image_url = hole.get('ImageUrlHighDef')
+                hole_number = hole.get('Number')  
+                if image_url and hole_number:
+                    image_urls.append(image_url)
+                    hole_numbers.append(hole_number)
+            
+            # 每行显示6个图片
+            num_images_per_row = 6
+            num_rows = (len(image_urls) + num_images_per_row - 1) // num_images_per_row 
+
+            for row in range(num_rows):
+                cols = st.columns(num_images_per_row)
+                for col, image_url, hole_number in zip(cols, image_urls[row*num_images_per_row:(row+1)*num_images_per_row], hole_numbers[row*num_images_per_row:(row+1)*num_images_per_row]):
+                    with col:
+                        st.image(image_url, caption=f"Hole {hole_number}", width=300)
+
+if st.button("获取并显示球场图片"):
+    display_course_images()
