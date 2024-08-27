@@ -32,7 +32,6 @@ if uploaded_file is not None:
         st.selectbox(
             "选择球场",
             course_names,
-            index=st.session_state['selected_course_index'] - 1,
             key='selected_course',
             on_change=update_course_index
         )
