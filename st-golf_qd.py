@@ -4,6 +4,7 @@ import folium
 import requests
 from streamlit_folium import folium_static
 from folium.plugins import MarkerCluster
+import math
 
 st.set_page_config(layout="wide")
 
@@ -91,6 +92,25 @@ headers = {
     'Authorization': 'Basic ODAwM2UwZWZhMGFlNGM3NGE4N2MxYTZlMDQ1ZTdkNjU6TDNAZGVyYm9hcmRQcjBkIQ==',
 }
 
+# 将半圆格式的经纬度转换为度数格式
+def semi_circle_to_degrees(semi_circle_value):
+    return semi_circle_value * (180 / (2**31))
+
+# 计算两点之间的距离（米）
+def calculate_distance(lat1, lon1, lat2, lon2):
+    radius = 6371000  # 地球半径，单位：米
+    
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    c = 2 * math.asin(math.sqrt(a))
+    
+    distance = radius * c
+    return distance
+
 # 获取球场详情函数
 def fetch_course_details(global_layout_id, build_id):
     api_url = f"https://omt.garmin.com/CourseViewData/course-layouts/{global_layout_id}/releases/{build_id}?precision=24&languageCode=zh_CHS"
@@ -109,15 +129,42 @@ def fetch_course_details(global_layout_id, build_id):
 def fetch_course_ids(course_name, longitude, latitude):
     longitude = longitude[:9]
     latitude = latitude[:9]
-    url = f"https://omt.garmin.com/CourseViewData/Boundaries/{longitude},{latitude},32/Courses?courseName={course_name}&pageSize=1&page=1&filterDualGreen=false&filter3dOnly=false"
+    url = f"https://omt.garmin.com/CourseViewData/Boundaries/{longitude},{latitude},32/Courses?courseName={course_name}&pageSize=10&page=1&filterDualGreen=false&filter3dOnly=false"
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         try:
             data = response.json()
+            closest_course = None
+            min_distance = float('inf')
+            
             for course in data.get('Courses', []):
-                st.success(f"Found course: {course_name}, GlobalLayoutId: {course['GlobalLayoutId']}, BuildId: {course['BuildId']}")
-                return course['GlobalLayoutId'], course['BuildId']
+                course_lat = semi_circle_to_degrees(course['Latitude'])
+                course_lon = semi_circle_to_degrees(course['Longitude'])
+                # 计算球场中心与提供的经纬度的距离
+                distance = calculate_distance(float(center_lat), float(center_lon), course_lat, course_lon)
+                # 找到距离最近的球场
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_course = course
+            
+            if closest_course:
+                    matched_courses = [course for course in data.get('Courses', [])
+                                        if course_name in course.get('CourseName', '')]
 
+                    if matched_courses:
+                        closest_course = None
+                        for course in matched_courses:
+                            if course.get('CourseName') == course_name:
+                                closest_course = course
+                                break
+                        # 如果没有完全匹配的球场，选择第一个名称包含的
+                        if not closest_course:
+                            closest_course = matched_courses[0]
+                            
+                    st.success(f"Found course: {closest_course['Name']}, GlobalLayoutId: {closest_course['GlobalLayoutId']}, BuildId: {closest_course['BuildId']}")
+                    return closest_course['GlobalLayoutId'], closest_course['BuildId']
+            else:
+                st.error(f"未找到与经纬度匹配的球场: {course_name}")
         except requests.JSONDecodeError as e:
             st.error(f"JSON Decode Error: {e}")
     else:
