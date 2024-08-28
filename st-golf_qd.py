@@ -126,55 +126,50 @@ def fetch_course_details(global_layout_id, build_id):
         return None
 
 # 根据经纬度获取球场的globalLayoutId和buildId
-def fetch_course_ids(course_name, longitude, latitude):
+def fetch_course_ids(course_name, course_name_en, longitude, latitude):
     longitude = longitude[:9]
     latitude = latitude[:9]
     url = f"https://omt.garmin.com/CourseViewData/Boundaries/{longitude},{latitude},32/Courses?courseName={course_name}&pageSize=10&page=1&filterDualGreen=false&filter3dOnly=false"
     response = requests.get(url, headers=headers)
+    
     if response.status_code == 200:
         try:
             data = response.json()
-            closest_course = None
-            min_distance = float('inf')
-            
-            for course in data.get('Courses', []):
-                course_lat = semi_circle_to_degrees(course['Latitude'])
-                course_lon = semi_circle_to_degrees(course['Longitude'])
-                # 计算球场中心与提供的经纬度的距离
-                distance = calculate_distance(float(center_lat), float(center_lon), course_lat, course_lon)
-                # 找到距离最近的球场
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_course = course
-            
-            if closest_course:
-                    matched_courses = [course for course in data.get('Courses', [])
-                                        if course_name in course.get('Name', '')]
+            matched_courses = [course for course in data.get('Courses', [])
+                               if course.get('Name') == course_name or course.get('Name') == course_name_en]  # 完全匹配名称的球场
 
-                    if matched_courses:
-                        closest_course = None
-                        for course in matched_courses:
-                            if course.get('Name') == course_name:
-                                closest_course = course
-                                break
-                        # 如果没有完全匹配的球场，选择第一个名称包含的
-                        if not closest_course:
-                            closest_course = matched_courses[0]
+            if matched_courses:
+                closest_course = None
+                min_distance = float('inf')
+                
+                for course in matched_courses:
+                    course_lat = semi_circle_to_degrees(course['Latitude'])
+                    course_lon = semi_circle_to_degrees(course['Longitude'])
+                    
+                    distance = calculate_distance(float(center_lat), float(center_lon), course_lat, course_lon)
+                    
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_course = course
 
-                    st.success(f"Found course: {closest_course['Name']}, GlobalLayoutId: {closest_course['GlobalLayoutId']}, BuildId: {closest_course['BuildId']}")
-                    return closest_course['GlobalLayoutId'], closest_course['BuildId']
+                # 返回最近的完全匹配球场
+                st.success(f"Found closest matching course: {closest_course['Name']}, GlobalLayoutId: {closest_course['GlobalLayoutId']}, BuildId: {closest_course['BuildId']}")
+                return closest_course['GlobalLayoutId'], closest_course['BuildId']
             else:
-                st.error(f"未找到与经纬度匹配的球场: {course_name}")
+                st.error(f"未找到完全匹配的球场: {course_name} 或 {course_name_en}")
         except requests.JSONDecodeError as e:
             st.error(f"JSON Decode Error: {e}")
     else:
         st.error(f"Request failed with status code {response.status_code}")
     return None, None
 
+
 # 获取并显示球场图片
 def display_course_images():
     name = course_data.iloc[0]['球场名称']
-    global_layout_id, build_id = fetch_course_ids(name, str(center_lon).replace(".", ""), str(center_lat).replace(".", ""))
+    name_en = course_data.iloc[0]['球场英文名称']
+    global_layout_id, build_id = fetch_course_ids(name, name_en, str(center_lon).replace(".", ""), str(center_lat).replace(".", ""))
+
     if global_layout_id and build_id:
         course_details = fetch_course_details(global_layout_id, build_id)
         if course_details:
