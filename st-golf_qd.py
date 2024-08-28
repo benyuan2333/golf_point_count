@@ -61,7 +61,7 @@ if uploaded_file is not None:
         tiles='http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
         attr='Google',
         name='Google Satellite',
-        max_zoom=20,
+        max_zoom=30,
         subdomains=['mt0', 'mt1', 'mt2', 'mt3']
     ).add_to(m)
 
