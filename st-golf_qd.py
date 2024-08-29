@@ -8,11 +8,23 @@ import math
 
 st.set_page_config(layout="wide")
 
+if 'filter_checkbox' not in st.session_state:
+    st.session_state['filter_checkbox'] = False
+
 # 上传表格
 uploaded_file = st.file_uploader("上传表格", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
+
+    filter_checkbox = st.checkbox(
+        "过滤偏差 < :blue-background[18米]的球道",
+        value=st.session_state['filter_checkbox'],
+        key='filter_checkbox'
+    )
+
+    if st.session_state['filter_checkbox']:
+        df = df[~((df['顺序出错球洞'].notna()) & (df['距离(米)'] < 18))]
 
     course_names = df['文件名称'].str.replace('.json', '', regex=False).unique()
 
@@ -61,7 +73,7 @@ if uploaded_file is not None:
         tiles='http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
         attr='Google',
         name='Google Satellite',
-        max_zoom=30,
+        max_zoom=20,
         subdomains=['mt0', 'mt1', 'mt2', 'mt3']
     ).add_to(m)
 
@@ -162,7 +174,6 @@ def fetch_course_ids(course_name, course_name_en, longitude, latitude):
     else:
         st.error(f"Request failed with status code {response.status_code}")
     return None, None
-
 
 # 获取并显示球场图片
 def display_course_images():
