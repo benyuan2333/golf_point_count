@@ -113,9 +113,9 @@ if uploaded_file is not None:
             }])
             st.session_state['problematic_courses'] = pd.concat([st.session_state['problematic_courses'], new_row], ignore_index=True)
             st.success("保存成功！")
-
-    st.write("### 保存的有问题的球场")
-    st.dataframe(st.session_state['problematic_courses'])
+    if not st.session_state['problematic_courses'].empty:
+        st.write("### 保存的有问题的球场")
+        st.dataframe(st.session_state['problematic_courses'])
 
 headers = {
     'Accept': 'application/json; charset=utf-8',
@@ -161,7 +161,7 @@ def fetch_course_ids(course_name, course_name_en, longitude, latitude):
     latitude = latitude[:9]
     url = f"https://omt.garmin.com/CourseViewData/Boundaries/{longitude},{latitude},32/Courses?courseName={course_name}&pageSize=10&page=1&filterDualGreen=false&filter3dOnly=false"
     response = requests.get(url, headers=headers)
-    
+
     if response.status_code == 200:
         try:
             data = response.json()
