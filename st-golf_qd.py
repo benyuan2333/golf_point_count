@@ -11,28 +11,30 @@ st.set_page_config(layout="wide")
 if 'filter_checkbox' not in st.session_state:
     st.session_state['filter_checkbox'] = False
 
+# 保存有问题的球场数据
+if 'problematic_courses' not in st.session_state:
+    st.session_state['problematic_courses'] = pd.DataFrame(columns=['球场名称', '球场出错球道编号', '备注'])
+
 # 上传表格
 uploaded_file = st.file_uploader("上传表格", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
+    # 勾选复选框以过滤数据
     filter_checkbox = st.checkbox(
         "过滤偏差 < :blue-background[18米]的球道",
         value=st.session_state['filter_checkbox'],
         key='filter_checkbox'
     )
 
-    if st.session_state['filter_checkbox']:
+    if filter_checkbox:
         df = df[~((df['顺序出错球洞'].notna()) & (df['距离(米)'] < 18))]
 
     course_names = df['文件名称'].str.replace('.json', '', regex=False).unique()
 
-    if 'selected_course_index' not in st.session_state:
-        st.session_state['selected_course_index'] = 1
-
-    if 'selected_course' not in st.session_state:
-        st.session_state['selected_course'] = course_names[0]
+    if 'selected_course' not in st.session_state or st.session_state['selected_course'] not in course_names:
+        st.session_state['selected_course'] = course_names[0] 
 
     def update_course_index():
         st.session_state['selected_course_index'] = course_names.tolist().index(st.session_state['selected_course']) + 1
@@ -50,6 +52,7 @@ if uploaded_file is not None:
             on_change=update_course_index
         )
 
+    # 用数字输入框显示球场序号
     with col2:
         st.number_input(
             "球场序号",
@@ -98,6 +101,21 @@ if uploaded_file is not None:
         ).add_to(marker_cluster)
 
     folium_static(m, width=1380, height=850)
+
+    # 审核功能
+    with st.sidebar:
+        remark = st.text_input("备注", "")
+        if st.button("保存有问题的球场"):
+            new_row = pd.DataFrame([{
+                '球场名称': final_selected_course,
+                '球场出错球道编号': ', '.join(course_data['顺序出错球洞'].dropna().astype(str).unique()), 
+                '备注': remark
+            }])
+            st.session_state['problematic_courses'] = pd.concat([st.session_state['problematic_courses'], new_row], ignore_index=True)
+            st.success("保存成功！")
+guo
+    st.write("### 保存的有问题的球场")
+    st.dataframe(st.session_state['problematic_courses'])
 
 headers = {
     'Accept': 'application/json; charset=utf-8',
