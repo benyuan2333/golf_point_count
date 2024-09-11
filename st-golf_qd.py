@@ -52,12 +52,13 @@ if uploaded_file is not None:
             on_change=update_course_index
         )
 
-    # 用数字输入框显示球场序号
     with col2:
+        total_courses = len(course_names)
+        course_index_label = f"球场序号 &nbsp; :blue-background[总{total_courses}]"
         st.number_input(
-            "球场序号",
+            course_index_label,
             min_value=1,
-            max_value=len(course_names),
+            max_value=total_courses,
             step=1,
             key='selected_course_index',
             on_change=update_course_name
