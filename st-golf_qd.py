@@ -113,7 +113,7 @@ if uploaded_file is not None:
             }])
             st.session_state['problematic_courses'] = pd.concat([st.session_state['problematic_courses'], new_row], ignore_index=True)
             st.success("保存成功！")
-guo
+
     st.write("### 保存的有问题的球场")
     st.dataframe(st.session_state['problematic_courses'])
 
