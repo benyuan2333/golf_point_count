@@ -36,7 +36,9 @@ def is_polygon_closed(vertices):
     """检查多边形是否闭合"""
     if len(vertices) > 1:
         return vertices[0] == vertices[-1]
-    return False
+    else:
+        print("未完全闭合")
+        return False
 
 if uploaded_file is not None:
     # 解析 JSON 文件
