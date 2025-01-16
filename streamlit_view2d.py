@@ -32,6 +32,12 @@ def generate_ellipse_arc_points(center, major_axis, major_radius, minor_radius, 
     y = center[1] + major_radius * np.cos(angles) * major_axis[1] + minor_radius * np.sin(angles) * minor_axis[1]
     return list(zip(x, y))
 
+def is_polygon_closed(vertices):
+    """检查多边形是否闭合"""
+    if len(vertices) > 1:
+        return vertices[0] == vertices[-1]
+    return False
+
 if uploaded_file is not None:
     # 解析 JSON 文件
     data = json.load(uploaded_file)
@@ -74,7 +80,7 @@ if uploaded_file is not None:
 
             elif entity["type"] == "hatch":
                 loops = entity.get("loops", [])
-                for loop in loops:
+                for loop_idx, loop in enumerate(loops):
                     vertices = []
                     for edge in loop:
                         if edge["type"] == "edgeLineSeg2d":
@@ -90,8 +96,13 @@ if uploaded_file is not None:
                             )
                             vertices.extend(ellipse_points)
                     if vertices:
+                        # 确保多边形顶点闭合
+                        if not is_polygon_closed(vertices):
+                            vertices.append(vertices[0])
                         polygon = Polygon(vertices, closed=True, edgecolor='red', facecolor='lightcoral', hatch='//', alpha=0.7)
                         ax.add_patch(polygon)
+                    else:
+                        st.sidebar.warning(f"Loop {loop_idx} in hatch entity 无有效顶点")
 
         ax.set_aspect('equal', adjustable='datalim')
         ax.grid(True, linestyle='--', alpha=0.5)
