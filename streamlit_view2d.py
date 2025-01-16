@@ -33,7 +33,12 @@ def generate_arc_points(center, radius, start_angle, end_angle, num_points=50):
 
 def process_hatch_loops(hatch_entity):
     all_loops = []
-    for loop in hatch_entity.get("loops", []):
+    if isinstance(hatch_entity, dict) and "loops" in hatch_entity:
+        loops = hatch_entity["loops"]
+    else:
+        return all_loops
+        
+    for loop in loops:
         vertices = []
         for edge in loop:
             if edge["type"] == "edgeLineSeg2d":
@@ -75,76 +80,51 @@ uploaded_file = st.file_uploader("上传 JSON 文件", type=["json"])
 if uploaded_file is not None:
     try:
         data = json.load(uploaded_file)
-        views = data.get("views", [])
         
-        if views:
-            # 视图选择
-            selected_view_idx = st.sidebar.selectbox(
-                "选择视图",
-                range(len(views)),
-                format_func=lambda x: f"视图 {x + 1} - {views[x].get('viewType', '未知类型')}"
-            )
-            
-            view = views[selected_view_idx]
-            entities = view.get("entities", [])
-            
-            # 实体类型过滤
-            entity_types = list(set(entity["type"] for entity in entities))
-            selected_types = st.sidebar.multiselect(
-                "选择实体类型",
-                entity_types,
-                default=entity_types
-            )
-            
-            # 过滤实体
-            filtered_entities = [
-                entity for entity in entities
-                if entity["type"] in selected_types
-            ]
-            
-            # 创建图形
-            fig, ax = plt.subplots(figsize=(12, 8))
-            
-            # 绘制实体
-            for entity in filtered_entities:
-                try:
-                    if entity["type"] == "hatch":
-                        draw_hatch(ax, entity)
-                    elif entity["type"] == "circle":
-                        center = entity["start"]
-                        radius = entity.get("radius", 1)
-                        circle = Circle(center, radius, edgecolor="red", fill=False, linewidth=1.5)
-                        ax.add_patch(circle)
-                except Exception:
-                    continue
-
-            # 提取并标注基准点信息
-            datum_entities = [
-                entity for entity in entities if entity["type"] == "mLeader" and 
-                "DATUM_TARGET" in entity.get("userData", {}).get("businessInfo", [])
-            ]
-            for datum in datum_entities:
-                leader_points = datum.get("leaderPoints", [])
-                if leader_points:
-                    start_position = leader_points[0]
-                    text_content = datum.get("textOption", {}).get("textContent", "未知")
-                    ax.scatter(start_position[0], start_position[1], color="red", label="基准点起点", zorder=6)
-                    ax.text(start_position[0], start_position[1], f"{text_content}", color="red", fontsize=12, zorder=6)
-
-            ax.set_aspect('equal', adjustable='datalim')
-            ax.grid(True, linestyle='--', alpha=0.5)
-            ax.set_title(f"视图 {selected_view_idx + 1} - {view.get('viewType', '未知类型')}")
-
-            st.pyplot(fig)
-
-            if st.sidebar.button("导出过滤后的实体为 JSON"):
-                export_data = {"filtered_entities": filtered_entities}
-                st.sidebar.download_button(
-                    label="下载 JSON 文件",
-                    data=json.dumps(export_data, ensure_ascii=False, indent=4),
-                    file_name="filtered_entities.json"
-                )
+        # 处理不同的数据格式
+        if isinstance(data, list):
+            entities = data
+        elif isinstance(data, dict):
+            if "views" in data:
+                views = data["views"]
+                if len(views) > 0:
+                    view = views[0]
+                    entities = view.get("entities", [])
+            else:
+                entities = [data]
         else:
-            st.error("未找到任何视图数据！")
+            entities = []
+
+        # 创建图形
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # 绘制实体
+        for entity in entities:
+            try:
+                if entity["type"] == "hatch":
+                    draw_hatch(ax, entity)
+                elif entity["type"] == "circle":
+                    center = entity["start"]
+                    radius = entity.get("radius", 1)
+                    circle = Circle(center, radius, edgecolor="red", fill=False, linewidth=1.5)
+                    ax.add_patch(circle)
+            except Exception as e:
+                st.error(f"处理实体时出错: {str(e)}")
+                continue
+
+        ax.set_aspect('equal', adjustable='datalim')
+        ax.grid(True, linestyle='--', alpha=0.5)
+        ax.set_title("2D CAD 视图")
+
+        st.pyplot(fig)
+
+        if st.sidebar.button("导出实体为 JSON"):
+            export_data = {"entities": entities}
+            st.sidebar.download_button(
+                label="下载 JSON 文件",
+                data=json.dumps(export_data, ensure_ascii=False, indent=4),
+                file_name="entities.json"
+            )
+            
     except Exception as e:
         st.error(f"处理数据时出错: {str(e)}")
