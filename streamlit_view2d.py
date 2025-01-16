@@ -66,7 +66,14 @@ if uploaded_file is not None:
                             vertices.append(edge["end"])
                     if vertices:
                         # 创建多边形并填充红色斜线
-                        polygon = Polygon(vertices, closed=True, edgecolor='red', facecolor='none', hatch='/', alpha=0.5)
+                        polygon = Polygon(
+                            vertices,
+                            closed=True,
+                            edgecolor='red',  # 边框颜色
+                            facecolor='lightcoral',  # 填充颜色
+                            hatch='/',  # 斜线填充
+                            alpha=0.5  # 透明度
+                        )
                         ax.add_patch(polygon)
                         # 标注 hatch 的中心点
                         center_x = sum(v[0] for v in vertices) / len(vertices)
