@@ -97,10 +97,6 @@ if uploaded_file is not None:
                             linewidth=0.5  # 斜线粗细
                         )
                         ax.add_patch(polygon)
-                        # 标注 hatch 的中心点
-                        center_x = sum(v[0] for v in vertices) / len(vertices)
-                        center_y = sum(v[1] for v in vertices) / len(vertices)
-                        ax.text(center_x, center_y, "Hatch", color="red", fontsize=12, ha='center', va='center')
 
             # 处理其他类型
             if entity["type"] == "circle":
