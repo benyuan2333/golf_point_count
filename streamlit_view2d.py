@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Polygon
 from matplotlib import rcParams
 
-# 设置 Matplotlib 中文字体
-rcParams['font.sans-serif'] = ['SimHei']  # 使用黑体
+# 设置 Matplotlib 默认字体（无需特定中文字体）
+rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Liberation Sans', 'sans-serif']
 rcParams['axes.unicode_minus'] = False  # 正常显示负号
 
 # 初始化 Streamlit 页面
@@ -65,12 +65,13 @@ if uploaded_file is not None:
                             vertices.append(edge["start"])
                             vertices.append(edge["end"])
                     if vertices:
-                        polygon = Polygon(vertices, closed=True, edgecolor='green', facecolor='lightgreen', alpha=0.5)
+                        # 创建多边形并填充红色斜线
+                        polygon = Polygon(vertices, closed=True, edgecolor='red', facecolor='none', hatch='/', alpha=0.5)
                         ax.add_patch(polygon)
                         # 标注 hatch 的中心点
                         center_x = sum(v[0] for v in vertices) / len(vertices)
                         center_y = sum(v[1] for v in vertices) / len(vertices)
-                        ax.text(center_x, center_y, "Hatch", color="green", fontsize=12, ha='center', va='center')
+                        ax.text(center_x, center_y, "Hatch", color="red", fontsize=12, ha='center', va='center')
 
             # 处理其他类型
             if entity["type"] == "circle":
