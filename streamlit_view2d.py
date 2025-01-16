@@ -18,16 +18,43 @@ uploaded_file = st.file_uploader("上传 JSON 文件", type=["json"])
 
 def generate_arc_points(center, radius, start_angle, end_angle, num_points=100):
     """生成圆弧的点"""
-    angles = np.linspace(np.radians(start_angle), np.radians(end_angle), num_points)
+    # 将角度转换为弧度
+    start_rad = np.radians(start_angle)
+    end_rad = np.radians(end_angle)
+    
+    # 确保终止角度大于起始角度
+    if end_rad < start_rad:
+        end_rad += 2 * np.pi
+        
+    angles = np.linspace(start_rad, end_rad, num_points)
     x = center[0] + radius * np.cos(angles)
     y = center[1] + radius * np.sin(angles)
     return list(zip(x, y))
 
 def generate_ellipse_arc_points(center, major_axis, major_radius, minor_radius, start_angle, end_angle, num_points=100):
     """生成椭圆弧的点"""
-    angles = np.linspace(np.radians(start_angle), np.radians(end_angle), num_points)
-    x = center[0] + major_radius * np.cos(angles) * major_axis[0] + minor_radius * np.sin(angles) * (-major_axis[1])
-    y = center[1] + major_radius * np.cos(angles) * major_axis[1] + minor_radius * np.sin(angles) * major_axis[0]
+    # 将角度转换为弧度
+    start_rad = np.radians(start_angle)
+    end_rad = np.radians(end_angle)
+    
+    # 确保终止角度大于起始角度
+    if end_rad < start_rad:
+        end_rad += 2 * np.pi
+        
+    # 计算旋转角度
+    rotation_angle = np.arctan2(major_axis[1], major_axis[0])
+    
+    # 生成参数方程的角度序列
+    angles = np.linspace(start_rad, end_rad, num_points)
+    
+    # 计算未旋转的椭圆点
+    x_unrotated = major_radius * np.cos(angles)
+    y_unrotated = minor_radius * np.sin(angles)
+    
+    # 应用旋转变换
+    x = center[0] + (x_unrotated * np.cos(rotation_angle) - y_unrotated * np.sin(rotation_angle))
+    y = center[1] + (x_unrotated * np.sin(rotation_angle) + y_unrotated * np.cos(rotation_angle))
+    
     return list(zip(x, y))
 
 if uploaded_file is not None:
@@ -116,7 +143,6 @@ if uploaded_file is not None:
                 )
                 ax.add_patch(ellipse)
 
-            # 处理 hatch 实体
             elif entity["type"] == "hatch":
                 loops = entity.get("loops", [])
                 for loop in loops:
@@ -126,12 +152,39 @@ if uploaded_file is not None:
                             vertices.append(edge["start"])
                             vertices.append(edge["end"])
                         elif edge["type"] == "edgeCircArc2d":
-                            arc_points = generate_arc_points(edge["center"], edge["radius"], edge["startAngle"], edge["endAngle"])
+                            # 确保角度是按照正确方向生成的
+                            start_angle = edge["startAngle"]
+                            end_angle = edge["endAngle"]
+                            if end_angle < start_angle:
+                                end_angle += 360
+                            arc_points = generate_arc_points(
+                                edge["center"], 
+                                edge["radius"],
+                                start_angle,
+                                end_angle
+                            )
                             vertices.extend(arc_points)
                         elif edge["type"] == "edgeEllipArc2d":
-                            ellipse_points = generate_ellipse_arc_points(edge["center"], edge["majorAxis"], edge["majorRadius"], edge["minorRadius"], edge["startAngle"], edge["endAngle"])
+                            # 确保角度是按照正确方向生成的
+                            start_angle = edge["startAngle"]
+                            end_angle = edge["endAngle"]
+                            if end_angle < start_angle:
+                                end_angle += 360
+                            ellipse_points = generate_ellipse_arc_points(
+                                edge["center"],
+                                edge["majorAxis"],
+                                edge["majorRadius"],
+                                edge["minorRadius"],
+                                start_angle,
+                                end_angle
+                            )
                             vertices.extend(ellipse_points)
+                    
                     if vertices:
+                        # 创建闭合多边形
+                        if vertices[0] != vertices[-1]:
+                            vertices.append(vertices[0])
+                            
                         polygon = Polygon(
                             vertices,
                             closed=True,
@@ -143,7 +196,6 @@ if uploaded_file is not None:
                         )
                         ax.add_patch(polygon)
 
-            # 处理圆
             elif entity["type"] == "circle":
                 center = entity["start"]
                 radius = entity.get("radius", 1)
