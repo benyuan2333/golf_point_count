@@ -1,8 +1,9 @@
 import streamlit as st
 import json
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Polygon
+from matplotlib.patches import Circle, Polygon, Arc, Ellipse
 from matplotlib import rcParams
+import numpy as np
 
 # 设置 Matplotlib 默认字体（无需特定中文字体）
 rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Liberation Sans', 'sans-serif']
@@ -14,6 +15,20 @@ st.title("2D CAD Viewer")
 
 # 上传 JSON 文件
 uploaded_file = st.file_uploader("上传 JSON 文件", type=["json"])
+
+def generate_arc_points(center, radius, start_angle, end_angle, num_points=100):
+    """生成圆弧的点"""
+    angles = np.linspace(np.radians(start_angle), np.radians(end_angle), num_points)
+    x = center[0] + radius * np.cos(angles)
+    y = center[1] + radius * np.sin(angles)
+    return list(zip(x, y))
+
+def generate_ellipse_arc_points(center, major_axis, major_radius, minor_radius, start_angle, end_angle, num_points=100):
+    """生成椭圆弧的点"""
+    angles = np.linspace(np.radians(start_angle), np.radians(end_angle), num_points)
+    x = center[0] + major_radius * np.cos(angles) * major_axis[0] + minor_radius * np.sin(angles) * (-major_axis[1])
+    y = center[1] + major_radius * np.cos(angles) * major_axis[1] + minor_radius * np.sin(angles) * major_axis[0]
+    return list(zip(x, y))
 
 if uploaded_file is not None:
     # 解析 JSON 文件
@@ -64,6 +79,12 @@ if uploaded_file is not None:
                         if edge["type"] == "edgeLineSeg2d":
                             vertices.append(edge["start"])
                             vertices.append(edge["end"])
+                        elif edge["type"] == "edgeCircArc2d":
+                            arc_points = generate_arc_points(edge["center"], edge["radius"], edge["startAngle"], edge["endAngle"])
+                            vertices.extend(arc_points)
+                        elif edge["type"] == "edgeEllipArc2d":
+                            ellipse_points = generate_ellipse_arc_points(edge["center"], edge["majorAxis"], edge["majorRadius"], edge["minorRadius"], edge["startAngle"], edge["endAngle"])
+                            vertices.extend(ellipse_points)
                     if vertices:
                         # 创建多边形并填充红色斜线
                         polygon = Polygon(
