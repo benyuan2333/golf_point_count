@@ -71,8 +71,9 @@ if uploaded_file is not None:
                             closed=True,
                             edgecolor='red',  # 边框颜色
                             facecolor='lightcoral',  # 填充颜色
-                            hatch='/',  # 斜线填充
-                            alpha=0.5  # 透明度
+                            hatch='////',  # 增加斜线密度
+                            alpha=0.7,  # 透明度
+                            linewidth=0.5  # 斜线粗细
                         )
                         ax.add_patch(polygon)
                         # 标注 hatch 的中心点
