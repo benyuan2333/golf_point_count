@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Polygon, Arc, Ellipse
+from matplotlib.patches import Circle, Polygon
 from matplotlib import rcParams
 import numpy as np
 
@@ -10,8 +10,8 @@ rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Liberation Sans', 'sans-
 rcParams['axes.unicode_minus'] = False
 
 # 初始化 Streamlit 页面
-st.set_page_config(page_title="2D CAD Viewer", layout="wide")
-st.title("2D CAD Viewer")
+st.set_page_config(page_title="Hatch Viewer", layout="wide")
+st.title("Hatch Viewer")
 
 def generate_arc_points(center, radius, start_angle, end_angle, num_points=50):
     start_angle = start_angle % 360
@@ -31,13 +31,8 @@ def generate_arc_points(center, radius, start_angle, end_angle, num_points=50):
     
     return list(zip(x, y))
 
-def process_hatch_loops(hatch_entity):
+def process_hatch_loops(loops):
     all_loops = []
-    if isinstance(hatch_entity, dict) and "loops" in hatch_entity:
-        loops = hatch_entity["loops"]
-    else:
-        return all_loops
-        
     for loop in loops:
         vertices = []
         for edge in loop:
@@ -60,70 +55,54 @@ def process_hatch_loops(hatch_entity):
             all_loops.append(vertices)
     return all_loops
 
-def draw_hatch(ax, hatch_entity):
-    all_loops = process_hatch_loops(hatch_entity)
-    for vertices in all_loops:
-        polygon = Polygon(
-            vertices,
-            closed=True,
-            facecolor='none',
-            edgecolor='red',
-            hatch='///',
-            alpha=0.5,
-            linewidth=1
-        )
-        ax.add_patch(polygon)
+def draw_hatch(ax, hatch_data):
+    if "loops" in hatch_data:
+        all_loops = process_hatch_loops(hatch_data["loops"])
+        for vertices in all_loops:
+            polygon = Polygon(
+                vertices,
+                closed=True,
+                facecolor='none',
+                edgecolor='red',
+                hatch='///',
+                alpha=0.5,
+                linewidth=1
+            )
+            ax.add_patch(polygon)
 
 # 上传 JSON 文件
 uploaded_file = st.file_uploader("上传 JSON 文件", type=["json"])
 
 if uploaded_file is not None:
     try:
+        # 读取 JSON 数据
         data = json.load(uploaded_file)
         
-        # 处理不同的数据格式
-        if isinstance(data, list):
-            entities = data
-        elif isinstance(data, dict):
-            if "views" in data:
-                views = data["views"]
-                if len(views) > 0:
-                    view = views[0]
-                    entities = view.get("entities", [])
-            else:
-                entities = [data]
-        else:
-            entities = []
-
         # 创建图形
         fig, ax = plt.subplots(figsize=(12, 8))
         
-        # 绘制实体
-        for entity in entities:
-            try:
-                if entity["type"] == "hatch":
-                    draw_hatch(ax, entity)
-                elif entity["type"] == "circle":
-                    center = entity["start"]
-                    radius = entity.get("radius", 1)
-                    circle = Circle(center, radius, edgecolor="red", fill=False, linewidth=1.5)
-                    ax.add_patch(circle)
-            except Exception as e:
-                st.error(f"处理实体时出错: {str(e)}")
-                continue
-
+        # 如果是单个 hatch 对象
+        if isinstance(data, dict) and "loops" in data:
+            draw_hatch(ax, data)
+        # 如果是 hatch 对象列表
+        elif isinstance(data, list):
+            for hatch in data:
+                if isinstance(hatch, dict) and "loops" in hatch:
+                    draw_hatch(ax, hatch)
+        
         ax.set_aspect('equal', adjustable='datalim')
         ax.grid(True, linestyle='--', alpha=0.5)
-        ax.set_title("2D CAD 视图")
-
+        ax.set_title("Hatch 视图")
+        
+        # 显示图形
         st.pyplot(fig)
-
-        if st.sidebar.button("导出实体为 JSON"):
-            export_data = {"entities": entities}
+        
+        # 导出功能
+        if st.sidebar.button("导出数据"):
             st.sidebar.download_button(
                 label="下载 JSON 文件",
-                data=json.dumps(export_data, ensure_ascii=False, indent=4),
-                file_name="entities.json"
+                data=json.dumps(data, ensure_ascii=False, indent=4),
+                file_name="hatch_data.json"
             )
             
     except Exception as e:
