@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Polygon
 from matplotlib import rcParams
 
 # 设置 Matplotlib 中文字体
@@ -55,7 +55,24 @@ if uploaded_file is not None:
                     alpha=0.7
                 )
 
-            # 示例: 处理其他类型
+            # 处理 hatch 实体
+            if entity["type"] == "hatch":
+                loops = entity.get("loops", [])
+                for loop in loops:
+                    vertices = []
+                    for edge in loop:
+                        if edge["type"] == "edgeLineSeg2d":
+                            vertices.append(edge["start"])
+                            vertices.append(edge["end"])
+                    if vertices:
+                        polygon = Polygon(vertices, closed=True, edgecolor='green', facecolor='lightgreen', alpha=0.5)
+                        ax.add_patch(polygon)
+                        # 标注 hatch 的中心点
+                        center_x = sum(v[0] for v in vertices) / len(vertices)
+                        center_y = sum(v[1] for v in vertices) / len(vertices)
+                        ax.text(center_x, center_y, "Hatch", color="green", fontsize=12, ha='center', va='center')
+
+            # 处理其他类型
             if entity["type"] == "circle":
                 center = entity["start"]
                 radius = entity.get("radius", 1)
