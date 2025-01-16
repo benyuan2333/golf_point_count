@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon, Circle
+from matplotlib.patches import Polygon
 from matplotlib import rcParams
 import numpy as np
 
@@ -32,11 +32,26 @@ def generate_ellipse_arc_points(center, major_axis, major_radius, minor_radius, 
     y = center[1] + major_radius * np.cos(angles) * major_axis[1] + minor_radius * np.sin(angles) * minor_axis[1]
     return list(zip(x, y))
 
-def is_polygon_closed(vertices):
-    """检查多边形是否闭合"""
-    if len(vertices) > 1:
-        return vertices[0] == vertices[-1]
-    return False
+def connect_vertices(loop):
+    """连接顶点，确保所有边连续"""
+    vertices = []
+    for edge in loop:
+        if edge["type"] == "edgeLineSeg2d":
+            # 添加线段的起点和终点
+            vertices.append(edge["start"])
+            vertices.append(edge["end"])
+        elif edge["type"] == "edgeCircArc2d":
+            # 生成圆弧点并连接
+            arc_points = generate_arc_points(edge["center"], edge["radius"], edge["startAngle"], edge["endAngle"])
+            vertices.extend(arc_points)
+        elif edge["type"] == "edgeEllipArc2d":
+            # 生成椭圆弧点并连接
+            ellipse_points = generate_ellipse_arc_points(
+                edge["center"], edge["majorAxis"], edge["majorRadius"],
+                edge["minorRadius"], edge["startAngle"], edge["endAngle"]
+            )
+            vertices.extend(ellipse_points)
+    return vertices
 
 if uploaded_file is not None:
     # 解析 JSON 文件
@@ -67,37 +82,13 @@ if uploaded_file is not None:
         # 设置绘图参数
         fig, ax = plt.subplots(figsize=(12, 12))
         for entity in filtered_entities:
-            if entity["type"] == "line":
-                start = entity["start"]
-                end = entity["end"]
-                ax.plot([start[0], end[0]], [start[1], end[1]], color="blue", alpha=0.7)
-
-            elif entity["type"] == "circle":
-                center = entity["center"]
-                radius = entity["radius"]
-                circle = Circle(center, radius, edgecolor="red", fill=False, linewidth=1.5)
-                ax.add_patch(circle)
-
-            elif entity["type"] == "hatch":
+            if entity["type"] == "hatch":
                 loops = entity.get("loops", [])
                 for loop_idx, loop in enumerate(loops):
-                    vertices = []
-                    for edge in loop:
-                        if edge["type"] == "edgeLineSeg2d":
-                            vertices.append(edge["start"])
-                            vertices.append(edge["end"])
-                        elif edge["type"] == "edgeCircArc2d":
-                            arc_points = generate_arc_points(edge["center"], edge["radius"], edge["startAngle"], edge["endAngle"])
-                            vertices.extend(arc_points)
-                        elif edge["type"] == "edgeEllipArc2d":
-                            ellipse_points = generate_ellipse_arc_points(
-                                edge["center"], edge["majorAxis"], edge["majorRadius"],
-                                edge["minorRadius"], edge["startAngle"], edge["endAngle"]
-                            )
-                            vertices.extend(ellipse_points)
+                    vertices = connect_vertices(loop)
                     if vertices:
-                        # 确保多边形顶点闭合
-                        if not is_polygon_closed(vertices):
+                        # 确保多边形闭合
+                        if vertices[0] != vertices[-1]:
                             vertices.append(vertices[0])
                         polygon = Polygon(vertices, closed=True, edgecolor='red', facecolor='lightcoral', hatch='//', alpha=0.7)
                         ax.add_patch(polygon)
@@ -106,7 +97,6 @@ if uploaded_file is not None:
 
         ax.set_aspect('equal', adjustable='datalim')
         ax.grid(True, linestyle='--', alpha=0.5)
-        ax.set_title(f"视图 {selected_view_idx + 1} - {view.get('viewType', '未知类型')}")
         ax.relim()
         ax.autoscale_view()
 
