@@ -1,11 +1,12 @@
 import streamlit as st
 import json
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon, Circle
+from matplotlib.patches import Circle, Polygon, Arc, Ellipse
 from matplotlib import rcParams
 import numpy as np
+import math
 
-# 设置 Matplotlib 默认字体
+# 设置 Matplotlib 默认字体（无需特定中文字体）
 rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Liberation Sans', 'sans-serif']
 rcParams['axes.unicode_minus'] = False  # 正常显示负号
 
@@ -25,27 +26,20 @@ def generate_arc_points(center, radius, start_angle, end_angle, num_points=100):
 
 def generate_ellipse_arc_points(center, major_axis, major_radius, minor_radius, start_angle, end_angle, num_points=100):
     """生成椭圆弧的点"""
-    major_axis = np.array(major_axis) / np.linalg.norm(major_axis)
-    minor_axis = [-major_axis[1], major_axis[0]]  # 主轴的垂直方向为副轴
     angles = np.linspace(np.radians(start_angle), np.radians(end_angle), num_points)
-    x = center[0] + major_radius * np.cos(angles) * major_axis[0] + minor_radius * np.sin(angles) * minor_axis[0]
-    y = center[1] + major_radius * np.cos(angles) * major_axis[1] + minor_radius * np.sin(angles) * minor_axis[1]
+    # 计算椭圆旋转角度
+    phi = math.atan2(major_axis[1], major_axis[0])
+    
+    x = center[0] + major_radius * np.cos(angles) * np.cos(phi) - minor_radius * np.sin(angles) * np.sin(phi)
+    y = center[1] + major_radius * np.cos(angles) * np.sin(phi) + minor_radius * np.sin(angles) * np.cos(phi)
     return list(zip(x, y))
-
-def is_polygon_closed(vertices):
-    """检查多边形是否闭合"""
-    if len(vertices) > 1:
-        return vertices[0] == vertices[-1]
-    else:
-        print("未完全闭合")
-        return False
 
 if uploaded_file is not None:
     # 解析 JSON 文件
     data = json.load(uploaded_file)
     st.sidebar.header("绘图信息")
 
-    # 获取绘图层级信息
+    # 显示绘图层级信息
     drawing = data[0].get("drawing", {})
     views = drawing.get("views", [])
 
@@ -69,46 +63,137 @@ if uploaded_file is not None:
         # 设置绘图参数
         fig, ax = plt.subplots(figsize=(12, 12))
         for entity in filtered_entities:
-            if entity["type"] == "line":
-                start = entity["start"]
-                end = entity["end"]
-                ax.plot([start[0], end[0]], [start[1], end[1]], color="blue", alpha=0.7)
+            try:
+                if entity["type"] == "line":
+                    start = entity["start"]
+                    end = entity["end"]
+                    ax.plot(
+                        [start[0], end[0]],
+                        [start[1], end[1]],
+                        label=f'Line {entity.get("userData", {}).get("uuid", "")}',
+                        color="blue",
+                        alpha=0.7
+                    )
 
-            elif entity["type"] == "circle":
-                center = entity["center"]
-                radius = entity["radius"]
-                circle = Circle(center, radius, edgecolor="red", fill=False, linewidth=1.5)
-                ax.add_patch(circle)
-
-            elif entity["type"] == "hatch":
-                loops = entity.get("loops", [])
-                for loop_idx, loop in enumerate(loops):
-                    vertices = []
-                    for edge in loop:
-                        if edge["type"] == "edgeLineSeg2d":
-                            vertices.append(edge["start"])
-                            vertices.append(edge["end"])
-                        elif edge["type"] == "edgeCircArc2d":
-                            arc_points = generate_arc_points(edge["center"], edge["radius"], edge["startAngle"], edge["endAngle"])
-                            vertices.extend(arc_points)
-                        elif edge["type"] == "edgeEllipArc2d":
-                            ellipse_points = generate_ellipse_arc_points(
-                                edge["center"], edge["majorAxis"], edge["majorRadius"],
-                                edge["minorRadius"], edge["startAngle"], edge["endAngle"]
+                # 处理 hatch 实体
+                elif entity["type"] == "hatch":
+                    loops = entity.get("loops", [])
+                    for loop in loops:
+                        vertices = []
+                        for edge in loop:
+                            if edge["type"] == "edgeLineSeg2d":
+                                vertices.append(edge["start"])
+                                vertices.append(edge["end"])
+                            elif edge["type"] == "edgeCircArc2d":
+                                center = edge.get("center")
+                                radius = edge.get("radius")
+                                start_angle = edge.get("startAngle")
+                                end_angle = edge.get("endAngle")
+                                if None in (center, radius, start_angle, end_angle):
+                                    st.warning("圆弧实体缺少必要字段，跳过此边。")
+                                    continue
+                                arc_points = generate_arc_points(center, radius, start_angle, end_angle)
+                                vertices.extend(arc_points)
+                            elif edge["type"] == "edgeEllipArc2d":
+                                center = edge.get("center")
+                                major_axis = edge.get("majorAxis")
+                                major_radius = edge.get("majorRadius")
+                                minor_radius = edge.get("minorRadius")
+                                start_angle = edge.get("startAngle")
+                                end_angle = edge.get("endAngle")
+                                if None in (center, major_axis, major_radius, minor_radius, start_angle, end_angle):
+                                    st.warning("椭圆弧实体缺少必要字段，跳过此边。")
+                                    continue
+                                ellipse_points = generate_ellipse_arc_points(center, major_axis, major_radius, minor_radius, start_angle, end_angle)
+                                vertices.extend(ellipse_points)
+                        if vertices:
+                            # 创建多边形并填充红色斜线
+                            polygon = Polygon(
+                                vertices,
+                                closed=True,
+                                edgecolor='red',  # 边框颜色
+                                facecolor='lightcoral',  # 填充颜色
+                                hatch='////',  # 增加斜线密度
+                                alpha=0.7,  # 透明度
+                                linewidth=0.5  # 斜线粗细
                             )
-                            vertices.extend(ellipse_points)
-                    if vertices:
-                        # 确保多边形顶点闭合
-                        if not is_polygon_closed(vertices):
-                            vertices.append(vertices[0])
-                        polygon = Polygon(vertices, closed=True, edgecolor='red', facecolor='lightcoral', hatch='//', alpha=0.7)
-                        ax.add_patch(polygon)
-                    else:
-                        st.sidebar.warning(f"Loop {loop_idx} in hatch entity 无有效顶点")
+                            ax.add_patch(polygon)
 
+                # 处理圆弧实体
+                elif entity["type"] == "arc":
+                    center = entity["center"]
+                    radius = entity["radius"]
+                    start_angle = entity["startAngle"]
+                    end_angle = entity["endAngle"]
+                    arc = Arc(
+                        center,
+                        2*radius,
+                        2*radius,
+                        angle=0,
+                        theta1=start_angle,
+                        theta2=end_angle,
+                        edgecolor="green",
+                        linewidth=1.5,
+                        zorder=5
+                    )
+                    ax.add_patch(arc)
+
+                # 处理椭圆弧实体
+                elif entity["type"] == "ellipse":
+                    center = entity["center"]
+                    major_axis = entity["majorAxis"]
+                    major_radius = entity["majorRadius"]
+                    minor_radius = entity["minorRadius"]
+                    start_angle = entity["startAngle"]
+                    end_angle = entity["endAngle"]
+                    # 计算旋转角度（度）
+                    phi = math.degrees(math.atan2(major_axis[1], major_axis[0]))
+                    ellipse = Ellipse(
+                        center,
+                        width=2*major_radius,
+                        height=2*minor_radius,
+                        angle=phi,
+                        edgecolor="purple",
+                        linewidth=1.5,
+                        zorder=5,
+                        fill=False
+                    )
+                    ax.add_patch(ellipse)
+                    # 绘制椭圆弧部分
+                    angles = np.linspace(np.radians(start_angle), np.radians(end_angle), 100)
+                    x = center[0] + major_radius * np.cos(angles) * np.cos(math.radians(phi)) - minor_radius * np.sin(angles) * np.sin(math.radians(phi))
+                    y = center[1] + major_radius * np.cos(angles) * np.sin(math.radians(phi)) + minor_radius * np.sin(angles) * np.cos(math.radians(phi))
+                    ax.plot(x, y, color="purple", linewidth=1.5, zorder=6)
+
+                # 处理圆形实体
+                elif entity["type"] == "circle":
+                    center = entity["center"]
+                    radius = entity.get("radius", 1)
+                    circle = Circle(center, radius, edgecolor="red", fill=False, linewidth=1.5, zorder=5)
+                    ax.add_patch(circle)
+
+                # 处理基准点 (mLeader)
+                elif entity["type"] == "mLeader":
+                    user_data = entity.get("userData", {})
+                    business_info = user_data.get("businessInfo", [])
+                    if "DATUM_TARGET" in business_info:
+                        leader_points = entity.get("leaderPoints", [])
+                        if leader_points:
+                            # 标注起点 leaderPoint
+                            start_position = leader_points[0]
+                            text_content = entity.get("textOption", {}).get("textContent", "未知")
+                            ax.scatter(start_position[0], start_position[1], color="red", zorder=6)
+                            ax.text(start_position[0], start_position[1], f"{text_content}", color="red", fontsize=12, zorder=6)
+
+            except Exception as e:
+                st.error(f"绘制 {entity.get('type', '未知类型')} 实体时出错: {e}")
+
+        # 设置图形外观
         ax.set_aspect('equal', adjustable='datalim')
         ax.grid(True, linestyle='--', alpha=0.5)
         ax.set_title(f"视图 {selected_view_idx + 1} - {view.get('viewType', '未知类型')}")
+
+        # 自动缩放视图
         ax.relim()
         ax.autoscale_view()
 
@@ -118,9 +203,10 @@ if uploaded_file is not None:
         # 高级功能: 导出过滤后的实体
         if st.sidebar.button("导出过滤后的实体为 JSON"):
             export_data = {"filtered_entities": filtered_entities}
+            json_data = json.dumps(export_data, ensure_ascii=False, indent=4)
             st.sidebar.download_button(
                 label="下载 JSON 文件",
-                data=json.dumps(export_data, ensure_ascii=False, indent=4),
+                data=json_data,
                 file_name="filtered_entities.json"
             )
     else:
